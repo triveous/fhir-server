@@ -37,16 +37,15 @@ public class MinioBinaryStorageSvc extends BaseBinaryStorageSvcImpl {
 	private final ObjectMapper objectMapper;
 
 	public MinioBinaryStorageSvc(String minioBaseUrl, String accessKey, String secretKey, String bucketName, String basePath, ObjectMapper objectMapper) {
-		assert minioBaseUrl!=null;
-		assert accessKey!=null;
-		assert secretKey!=null;
-		assert bucketName!=null;
-		assert basePath!=null;
+		assert minioBaseUrl != null;
+		assert accessKey != null;
+		assert secretKey != null;
+		assert bucketName != null;
 		this.minioBaseUrl = minioBaseUrl;
 		this.accessKey = accessKey;
 		this.secretKey = secretKey;
 		this.bucketName = bucketName;
-		this.basePath = basePath;
+		this.basePath = basePath == null ? "" : basePath;
 		this.objectMapper = objectMapper;
 		this.client = buildClient();
 	}
@@ -243,13 +242,7 @@ public class MinioBinaryStorageSvc extends BaseBinaryStorageSvcImpl {
 	}
 
 	private ResolvedPath getStoragePath(String theId) {
-		ResolvedPath path = new ResolvedPath(basePath);
-
-		for (int i = 0; i < 10; ++i) {
-			path = new ResolvedPath(path, theId.substring(i, i + 1));
-		}
-
-		return path;
+		return new ResolvedPath(basePath, theId);
 	}
 
 	private ResolvedPath getStorageFilename(ResolvedPath theStoragePath, IIdType theResourceId, String theId) {
