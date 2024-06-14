@@ -218,6 +218,14 @@ hapi:
     #      requests_enabled: true
     #      responses_enabled: true
     #    binary_storage_enabled: true
+    #    binary_storage: Database
+    #    binary_storage_minio:
+    #      access-key: <Minio access key>
+    #      secret-key: <Minio secret key>
+    #      base-path: <storage base path>
+    #      base-url: <minio api url>
+    #      bucket-name: <minio bucket>
+
     inline_resource_storage_below_size: 4000
 #    bulk_export_enabled: true
 #    subscription:
