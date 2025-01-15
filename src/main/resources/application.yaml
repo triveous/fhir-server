@@ -259,3 +259,22 @@ hapi:
 #  protocol: 'http'
 #  schema_management_strategy: CREATE
 #  username: SomeUsername
+
+    security:
+      inbound:
+        authentication:
+          enabled: false
+          proceed-to-authorization-on-failure: false
+          proceed-to-authorization-on-no-auth: true
+          user-realm-uri: http://localhost:9000/auth/realm/arogyam
+        authorization:
+          enabled: false
+          allow-anonymous-access: true
+          anonymous-access-permission:
+            - name: fhir_read_all_of_type
+              arguments:
+                - Binary
+                - Composition
+            - name: fhir_transaction
+            - name: fhir_capabilities
+            - name: fhir_batch

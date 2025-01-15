@@ -41,6 +41,7 @@ import ca.uhn.fhir.jpa.search.StaleSearchDeletingSvcImpl;
 import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.annotations.OnCorsPresent;
 import ca.uhn.fhir.jpa.starter.annotations.OnImplementationGuidesPresent;
+import ca.uhn.fhir.jpa.starter.authnz.inbound.authentication.AuthenticationInterceptor;
 import ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationInterceptorFactory;
 import ca.uhn.fhir.jpa.starter.ig.IImplementationGuideOperationProvider;
 import ca.uhn.fhir.jpa.starter.util.EnvironmentHelper;
@@ -53,6 +54,7 @@ import ca.uhn.fhir.narrative.DefaultThymeleafNarrativeGenerator;
 import ca.uhn.fhir.narrative2.NullNarrativeGenerator;
 import ca.uhn.fhir.rest.api.IResourceSupportedSvc;
 import ca.uhn.fhir.rest.openapi.OpenApiInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInterceptor;
 import ca.uhn.fhir.rest.server.*;
 import ca.uhn.fhir.rest.server.interceptor.*;
@@ -137,7 +139,7 @@ public class StarterJpaConfig {
 		ConfigurableListableBeanFactory myConfigurableListableBeanFactory,
 		FhirContext theFhirContext, JpaStorageSettings theStorageSettings) {
 		LocalContainerEntityManagerFactoryBean retVal =
-				HapiEntityManagerFactoryUtil.newEntityManagerFactory(myConfigurableListableBeanFactory, theFhirContext, theStorageSettings);
+			HapiEntityManagerFactoryUtil.newEntityManagerFactory(myConfigurableListableBeanFactory, theFhirContext, theStorageSettings);
 		retVal.setPersistenceUnitName("HAPI_PU");
 
 		try {
@@ -146,7 +148,7 @@ public class StarterJpaConfig {
 			throw new ConfigurationException("Could not set the data source due to a configuration issue", e);
 		}
 		retVal.setJpaProperties(
-				EnvironmentHelper.getHibernateProperties(configurableEnvironment, myConfigurableListableBeanFactory));
+			EnvironmentHelper.getHibernateProperties(configurableEnvironment, myConfigurableListableBeanFactory));
 		return retVal;
 	}
 
@@ -166,7 +168,7 @@ public class StarterJpaConfig {
 	@Bean
 	@ConditionalOnProperty(prefix = "hapi.fhir", name = ENABLE_REPOSITORY_VALIDATING_INTERCEPTOR, havingValue = "true")
 	public RepositoryValidatingInterceptor repositoryValidatingInterceptor(
-			IRepositoryValidationInterceptorFactory factory) {
+		IRepositoryValidationInterceptorFactory factory) {
 		return factory.buildUsingStoredStructureDefinitions();
 	}
 
@@ -189,10 +191,10 @@ public class StarterJpaConfig {
 	@Primary
 	@Conditional(OnImplementationGuidesPresent.class)
 	public IPackageInstallerSvc packageInstaller(
-			AppProperties appProperties,
-			JobDefinition<ReindexJobParameters> reindexJobParametersJobDefinition,
-			JobDefinitionRegistry jobDefinitionRegistry,
-			IPackageInstallerSvc packageInstallerSvc) {
+		AppProperties appProperties,
+		JobDefinition<ReindexJobParameters> reindexJobParametersJobDefinition,
+		JobDefinitionRegistry jobDefinitionRegistry,
+		IPackageInstallerSvc packageInstallerSvc) {
 		jobDefinitionRegistry.addJobDefinitionIfNotRegistered(reindexJobParametersJobDefinition);
 
 		if (appProperties.getImplementationGuides() != null) {
@@ -202,10 +204,10 @@ public class StarterJpaConfig {
 				if (appProperties.getInstall_transitive_ig_dependencies()) {
 
 					packageInstallationSpec
-							.addDependencyExclude("hl7.fhir.r2.core")
-							.addDependencyExclude("hl7.fhir.r3.core")
-							.addDependencyExclude("hl7.fhir.r4.core")
-							.addDependencyExclude("hl7.fhir.r5.core");
+						.addDependencyExclude("hl7.fhir.r2.core")
+						.addDependencyExclude("hl7.fhir.r3.core")
+						.addDependencyExclude("hl7.fhir.r4.core")
+						.addDependencyExclude("hl7.fhir.r5.core");
 				}
 				packageInstallerSvc.install(packageInstallationSpec);
 			}
@@ -245,35 +247,39 @@ public class StarterJpaConfig {
 
 	@Bean
 	public RestfulServer restfulServer(
-			IFhirSystemDao<?, ?> fhirSystemDao,
-			AppProperties appProperties,
-			DaoRegistry daoRegistry,
-			Optional<MdmProviderLoader> mdmProviderProvider,
-			IJpaSystemProvider jpaSystemProvider,
-			ResourceProviderFactory resourceProviderFactory,
-			JpaStorageSettings jpaStorageSettings,
-			ISearchParamRegistry searchParamRegistry,
-			IValidationSupport theValidationSupport,
-			DatabaseBackedPagingProvider databaseBackedPagingProvider,
-			LoggingInterceptor loggingInterceptor,
-			Optional<TerminologyUploaderProvider> terminologyUploaderProvider,
-			Optional<SubscriptionTriggeringProvider> subscriptionTriggeringProvider,
-			Optional<CorsInterceptor> corsInterceptor,
-			IInterceptorBroadcaster interceptorBroadcaster,
-			Optional<BinaryAccessProvider> binaryAccessProvider,
-			BinaryStorageInterceptor binaryStorageInterceptor,
-			IValidatorModule validatorModule,
-			Optional<GraphQLProvider> graphQLProvider,
-			BulkDataExportProvider bulkDataExportProvider,
-			BulkDataImportProvider bulkDataImportProvider,
-			ValueSetOperationProvider theValueSetOperationProvider,
-			ReindexProvider reindexProvider,
-			PartitionManagementProvider partitionManagementProvider,
-			Optional<RepositoryValidatingInterceptor> repositoryValidatingInterceptor,
-			IPackageInstallerSvc packageInstallerSvc,
-			ThreadSafeResourceDeleterSvc theThreadSafeResourceDeleterSvc,
-			ApplicationContext appContext,
-			Optional<IpsOperationProvider> theIpsOperationProvider, Optional<IImplementationGuideOperationProvider> implementationGuideOperationProvider) {
+		IFhirSystemDao<?, ?> fhirSystemDao,
+		AppProperties appProperties,
+		DaoRegistry daoRegistry,
+		Optional<MdmProviderLoader> mdmProviderProvider,
+		IJpaSystemProvider jpaSystemProvider,
+		ResourceProviderFactory resourceProviderFactory,
+		JpaStorageSettings jpaStorageSettings,
+		ISearchParamRegistry searchParamRegistry,
+		IValidationSupport theValidationSupport,
+		DatabaseBackedPagingProvider databaseBackedPagingProvider,
+		LoggingInterceptor loggingInterceptor,
+		Optional<TerminologyUploaderProvider> terminologyUploaderProvider,
+		Optional<SubscriptionTriggeringProvider> subscriptionTriggeringProvider,
+		Optional<CorsInterceptor> corsInterceptor,
+		IInterceptorBroadcaster interceptorBroadcaster,
+		Optional<BinaryAccessProvider> binaryAccessProvider,
+		BinaryStorageInterceptor binaryStorageInterceptor,
+		IValidatorModule validatorModule,
+		Optional<GraphQLProvider> graphQLProvider,
+		BulkDataExportProvider bulkDataExportProvider,
+		BulkDataImportProvider bulkDataImportProvider,
+		ValueSetOperationProvider theValueSetOperationProvider,
+		ReindexProvider reindexProvider,
+		PartitionManagementProvider partitionManagementProvider,
+		Optional<RepositoryValidatingInterceptor> repositoryValidatingInterceptor,
+		IPackageInstallerSvc packageInstallerSvc,
+		ThreadSafeResourceDeleterSvc theThreadSafeResourceDeleterSvc,
+		ApplicationContext appContext,
+		Optional<IpsOperationProvider> theIpsOperationProvider,
+		Optional<IImplementationGuideOperationProvider> implementationGuideOperationProvider,
+		Optional<AuthenticationInterceptor> authenticationInterceptor,
+		Optional<AuthorizationInterceptor> authorizationInterceptor
+	) {
 		RestfulServer fhirServer = new RestfulServer(fhirSystemDao.getContext());
 
 		List<String> supportedResourceTypes = appProperties.getSupported_resource_types();
@@ -296,7 +302,7 @@ public class StarterJpaConfig {
 		fhirServer.registerProviders(resourceProviderFactory.createProviders());
 		fhirServer.registerProvider(jpaSystemProvider);
 		fhirServer.setServerConformanceProvider(calculateConformanceProvider(
-				fhirSystemDao, fhirServer, jpaStorageSettings, searchParamRegistry, theValidationSupport));
+			fhirSystemDao, fhirServer, jpaStorageSettings, searchParamRegistry, theValidationSupport));
 
 		/*
 		 * ETag Support
@@ -350,7 +356,7 @@ public class StarterJpaConfig {
 		} else if (appProperties.getUse_apache_address_strategy()) {
 			boolean useHttps = appProperties.getUse_apache_address_strategy_https();
 			fhirServer.setServerAddressStrategy(
-					useHttps ? ApacheProxyAddressStrategy.forHttps() : ApacheProxyAddressStrategy.forHttp());
+				useHttps ? ApacheProxyAddressStrategy.forHttps() : ApacheProxyAddressStrategy.forHttp());
 		} else {
 			fhirServer.setServerAddressStrategy(new IncomingRequestAddressStrategy());
 		}
@@ -363,10 +369,10 @@ public class StarterJpaConfig {
 		 * with this feature.
 		 */
 		if (fhirSystemDao
-				.getContext()
-				.getVersion()
-				.getVersion()
-				.isEqualOrNewerThan(FhirVersionEnum.DSTU3)) { // <-- ENABLED RIGHT NOW
+			.getContext()
+			.getVersion()
+			.getVersion()
+			.isEqualOrNewerThan(FhirVersionEnum.DSTU3)) { // <-- ENABLED RIGHT NOW
 			fhirServer.registerProvider(terminologyUploaderProvider.get());
 		}
 
@@ -385,7 +391,7 @@ public class StarterJpaConfig {
 
 		if (appProperties.getAllow_cascading_deletes()) {
 			CascadingDeleteInterceptor cascadingDeleteInterceptor = new CascadingDeleteInterceptor(
-					fhirSystemDao.getContext(), daoRegistry, interceptorBroadcaster, theThreadSafeResourceDeleterSvc);
+				fhirSystemDao.getContext(), daoRegistry, interceptorBroadcaster, theThreadSafeResourceDeleterSvc);
 			fhirServer.registerInterceptor(cascadingDeleteInterceptor);
 		}
 
@@ -458,6 +464,10 @@ public class StarterJpaConfig {
 		// register custom providers
 		registerCustomProviders(fhirServer, appContext, appProperties.getCustomProviderClasses());
 
+		// Register Auth Interceptor
+		authenticationInterceptor.ifPresent(fhirServer::registerInterceptor);
+		authorizationInterceptor.ifPresent(fhirServer::registerInterceptor);
+
 		return fhirServer;
 	}
 
@@ -466,7 +476,7 @@ public class StarterJpaConfig {
 	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private void registerCustomInterceptors(
-			RestfulServer fhirServer, ApplicationContext theAppContext, List<String> customInterceptorClasses) {
+		RestfulServer fhirServer, ApplicationContext theAppContext, List<String> customInterceptorClasses) {
 
 		if (customInterceptorClasses == null) {
 			return;
@@ -540,39 +550,39 @@ public class StarterJpaConfig {
 	}
 
 	public static IServerConformanceProvider<?> calculateConformanceProvider(
-			IFhirSystemDao fhirSystemDao,
-			RestfulServer fhirServer,
-			JpaStorageSettings jpaStorageSettings,
-			ISearchParamRegistry searchParamRegistry,
-			IValidationSupport theValidationSupport) {
+		IFhirSystemDao fhirSystemDao,
+		RestfulServer fhirServer,
+		JpaStorageSettings jpaStorageSettings,
+		ISearchParamRegistry searchParamRegistry,
+		IValidationSupport theValidationSupport) {
 		FhirVersionEnum fhirVersion = fhirSystemDao.getContext().getVersion().getVersion();
 		if (fhirVersion == FhirVersionEnum.DSTU2) {
 			JpaConformanceProviderDstu2 confProvider =
-					new JpaConformanceProviderDstu2(fhirServer, fhirSystemDao, jpaStorageSettings);
+				new JpaConformanceProviderDstu2(fhirServer, fhirSystemDao, jpaStorageSettings);
 			confProvider.setImplementationDescription("HAPI FHIR DSTU2 Server");
 			return confProvider;
 		} else if (fhirVersion == FhirVersionEnum.DSTU3) {
 
 			JpaConformanceProviderDstu3 confProvider =
-					new JpaConformanceProviderDstu3(fhirServer, fhirSystemDao, jpaStorageSettings, searchParamRegistry);
+				new JpaConformanceProviderDstu3(fhirServer, fhirSystemDao, jpaStorageSettings, searchParamRegistry);
 			confProvider.setImplementationDescription("HAPI FHIR DSTU3 Server");
 			return confProvider;
 		} else if (fhirVersion == FhirVersionEnum.R4) {
 
 			JpaCapabilityStatementProvider confProvider = new JpaCapabilityStatementProvider(
-					fhirServer, fhirSystemDao, jpaStorageSettings, searchParamRegistry, theValidationSupport);
+				fhirServer, fhirSystemDao, jpaStorageSettings, searchParamRegistry, theValidationSupport);
 			confProvider.setImplementationDescription("HAPI FHIR R4 Server");
 			return confProvider;
 		} else if (fhirVersion == FhirVersionEnum.R4B) {
 
 			JpaCapabilityStatementProvider confProvider = new JpaCapabilityStatementProvider(
-					fhirServer, fhirSystemDao, jpaStorageSettings, searchParamRegistry, theValidationSupport);
+				fhirServer, fhirSystemDao, jpaStorageSettings, searchParamRegistry, theValidationSupport);
 			confProvider.setImplementationDescription("HAPI FHIR R4B Server");
 			return confProvider;
 		} else if (fhirVersion == FhirVersionEnum.R5) {
 
 			JpaCapabilityStatementProvider confProvider = new JpaCapabilityStatementProvider(
-					fhirServer, fhirSystemDao, jpaStorageSettings, searchParamRegistry, theValidationSupport);
+				fhirServer, fhirSystemDao, jpaStorageSettings, searchParamRegistry, theValidationSupport);
 			confProvider.setImplementationDescription("HAPI FHIR R5 Server");
 			return confProvider;
 		} else {

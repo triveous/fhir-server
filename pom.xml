@@ -42,13 +42,13 @@
     </repositories>
 
     <dependencyManagement>
-       <dependencies>
-           <dependency>
-               <groupId>org.glassfish.jaxb</groupId>
-               <artifactId>jaxb-runtime</artifactId>
-               <version>${minio.version}</version>
-           </dependency>
-       </dependencies>
+        <dependencies>
+            <dependency>
+                <groupId>org.glassfish.jaxb</groupId>
+                <artifactId>jaxb-runtime</artifactId>
+                <version>${minio.version}</version>
+            </dependency>
+        </dependencies>
     </dependencyManagement>
 
     <dependencies>
@@ -64,8 +64,8 @@
             <artifactId>postgresql</artifactId>
         </dependency>
         <dependency>
-          <groupId>com.microsoft.sqlserver</groupId>
-          <artifactId>mssql-jdbc</artifactId>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
         </dependency>
 
         <!-- Needed for Email subscriptions -->
@@ -113,6 +113,7 @@
                     <groupId>commons-logging</groupId>
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
+
             </exclusions>
         </dependency>
         <!-- This dependency includes the JPA CQL Server -->
@@ -133,9 +134,9 @@
         </dependency>
         <!-- This dependency includes the CDS Hooks Server -->
         <dependency>
-          <groupId>ca.uhn.hapi.fhir</groupId>
-          <artifactId>hapi-fhir-server-cds-hooks</artifactId>
-          <version>${project.version}</version>
+            <groupId>ca.uhn.hapi.fhir</groupId>
+            <artifactId>hapi-fhir-server-cds-hooks</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <!-- This dependency includes the OpenAPI Server -->
         <dependency>
@@ -197,8 +198,16 @@
         <!-- Used for CORS support -->
         <!-- Spring Web is used to deploy the server to a web container. -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
+            <version>6.3.0</version>
+        </dependency>
+
+        <!-- User for JWT Decoding-->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
         </dependency>
 
         <!-- commons-logging is provided by jcl-over-slf4j, and the jar often shows up because of transitive dependencies; this dependency should avoid it -->
@@ -706,6 +715,6 @@
                     <version>1.17.0</version>
                 </dependency>
             </dependencies>
-        </profile>       
+        </profile>
     </profiles>
 </project>
