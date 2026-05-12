@@ -159,9 +159,12 @@ hapi:
       - https://unitsofmeasure.org/*
       - http://loinc.org/*
       - https://loinc.org/*
-    #    partitioning:
-    #      allow_references_across_partitions: false
-    #      partitioning_include_in_search_hashes: false
+    # Enable for multi-tenant deployments (one partition per tenant, addressed via URL: /fhir/{TENANT}/Patient).
+    # Pair with security.inbound.authentication.allowed-issuer-patterns and ensure each tenant's
+    # Keycloak JWT contains a partition_id claim matching the tenant name.
+    #partitioning:
+    #  allow_references_across_partitions: false
+    #  partitioning_include_in_search_hashes: false
     cors:
       allow_Credentials: true
       # These are allowed_origin patterns, see: https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/cors/CorsConfiguration.html#setAllowedOriginPatterns-java.util.List-
@@ -266,7 +269,12 @@ hapi:
           enabled: false
           proceed-to-authorization-on-failure: false
           proceed-to-authorization-on-no-auth: true
+          # Single-realm (backwards compatible): specify one Keycloak realm URI
           user-realm-uri: http://localhost:9000/auth/realm/arogyam
+          # Multi-tenant: list regex patterns matching allowed Keycloak realm issuer URLs.
+          # When set, user-realm-uri is ignored and each JWT's 'iss' claim is validated against these patterns.
+          # allowed-issuer-patterns:
+          #   - "https://keycloak.example.com/realms/.*"
         authorization:
           enabled: false
           allow-anonymous-access: true
