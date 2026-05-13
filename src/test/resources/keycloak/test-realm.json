@@ -1,0 +1,78 @@
+{
+  "realm": "test",
+  "enabled": true,
+  "sslRequired": "none",
+  "requiredActions": [
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 90,
+      "config": {}
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "fhir-client",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "partition-id-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "partition_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "partition_id",
+            "jsonType.label": "String",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "user-a",
+      "email": "user-a@test.local",
+      "firstName": "User",
+      "lastName": "A",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "attributes": {
+        "partition_id": ["TENANT-A"]
+      },
+      "credentials": [{"type": "password", "value": "password", "temporary": false}]
+    },
+    {
+      "username": "user-b",
+      "email": "user-b@test.local",
+      "firstName": "User",
+      "lastName": "B",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "attributes": {
+        "partition_id": ["TENANT-B"]
+      },
+      "credentials": [{"type": "password", "value": "password", "temporary": false}]
+    },
+    {
+      "username": "admin",
+      "email": "admin@test.local",
+      "firstName": "Admin",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{"type": "password", "value": "password", "temporary": false}]
+    }
+  ]
+}

@@ -71,6 +71,7 @@ public class OIDCAuthenticationProtocol implements AuthenticationProtocol {
 			.setUsernameNamespace(jwt.getClaimAsString("azp"))
 			.setServiceAccount(false)
 			.setFhirUserUrl(String.format("%s/%s", "Practitioner", jwt.getSubject()))
+			.setPartitionId(jwt.getClaimAsString("partition_id"))
 			.build();
 
 	}

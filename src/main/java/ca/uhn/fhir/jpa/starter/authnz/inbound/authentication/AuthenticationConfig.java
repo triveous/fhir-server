@@ -1,5 +1,6 @@
 package ca.uhn.fhir.jpa.starter.authnz.inbound.authentication;
 
+import ca.uhn.fhir.jpa.starter.authnz.inbound.authorization.JwtPartitionValidationInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -30,6 +31,9 @@ public class AuthenticationConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(AuthenticationProperties properties) {
+        if (!properties.getAllowedIssuerPatterns().isEmpty()) {
+            return new MultiIssuerJwtDecoder(properties.getAllowedIssuerPatterns());
+        }
         return JwtDecoders.fromIssuerLocation(properties.getUserRealmUri());
     }
 
@@ -41,5 +45,10 @@ public class AuthenticationConfig {
     @Bean
     public AuthenticationProtocol.Registry registry(OIDCAuthenticationProtocol authenticationProtocol) {
         return new AuthenticationProtocol.Registry(authenticationProtocol);
+    }
+
+    @Bean
+    public JwtPartitionValidationInterceptor jwtPartitionValidationInterceptor() {
+        return new JwtPartitionValidationInterceptor();
     }
 }

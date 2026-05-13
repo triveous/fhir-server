@@ -25,8 +25,9 @@ public class UserSessionDetail {
 	private final String systemUser;
 	private final Boolean serviceAccount;
 	private final String fhirUserUrl;
+	private final String partitionId;
 
-	private UserSessionDetail(String id, Jwt jwt, List<FhirContext> fhirContext, Set<String> scopes, String oidcClientId, Boolean accountDisabled, String email, Boolean emailVerified, Boolean accountLocked, Set<GrantedAuthority> authorities, String givenName, String familyName, String username, String usernameNamespace, String systemUser, Boolean serviceAccount, String fhirUserUrl) {
+	private UserSessionDetail(String id, Jwt jwt, List<FhirContext> fhirContext, Set<String> scopes, String oidcClientId, Boolean accountDisabled, String email, Boolean emailVerified, Boolean accountLocked, Set<GrantedAuthority> authorities, String givenName, String familyName, String username, String usernameNamespace, String systemUser, Boolean serviceAccount, String fhirUserUrl, String partitionId) {
 		this.id = id;
 		this.jwt = jwt;
 		this.fhirContext = fhirContext;
@@ -44,6 +45,7 @@ public class UserSessionDetail {
 		this.systemUser = systemUser;
 		this.serviceAccount = serviceAccount;
 		this.fhirUserUrl = fhirUserUrl;
+		this.partitionId = partitionId;
 	}
 
 	public String getId() {
@@ -118,6 +120,9 @@ public class UserSessionDetail {
 		return fhirUserUrl;
 	}
 
+	public String getPartitionId() {
+		return partitionId;
+	}
 
 	public static Builder builder() {
 		return new Builder();
@@ -141,6 +146,7 @@ public class UserSessionDetail {
 		private String systemUser;
 		private Boolean serviceAccount;
 		private String fhirUserUrl;
+		private String partitionId;
 
 		private Builder() {
 		}
@@ -230,8 +236,13 @@ public class UserSessionDetail {
 			return this;
 		}
 
+		public Builder setPartitionId(String partitionId) {
+			this.partitionId = partitionId;
+			return this;
+		}
+
 		public UserSessionDetail build() {
-			return new UserSessionDetail(id, jwt, fhirContext, scopes, oidcClientId, accountDisabled, email, emailVerified, accountLocked, authorities, givenName, familyName, username, usernameNamespace, systemUser, serviceAccount, fhirUserUrl);
+			return new UserSessionDetail(id, jwt, fhirContext, scopes, oidcClientId, accountDisabled, email, emailVerified, accountLocked, authorities, givenName, familyName, username, usernameNamespace, systemUser, serviceAccount, fhirUserUrl, partitionId);
 		}
 	}
 

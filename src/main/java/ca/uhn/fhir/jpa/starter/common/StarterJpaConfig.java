@@ -42,6 +42,7 @@ import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.annotations.OnCorsPresent;
 import ca.uhn.fhir.jpa.starter.annotations.OnImplementationGuidesPresent;
 import ca.uhn.fhir.jpa.starter.authnz.inbound.authentication.AuthenticationInterceptor;
+import ca.uhn.fhir.jpa.starter.authnz.inbound.authorization.JwtPartitionValidationInterceptor;
 import ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationInterceptorFactory;
 import ca.uhn.fhir.jpa.starter.ig.IImplementationGuideOperationProvider;
 import ca.uhn.fhir.jpa.starter.util.EnvironmentHelper;
@@ -278,7 +279,8 @@ public class StarterJpaConfig {
 		Optional<IpsOperationProvider> theIpsOperationProvider,
 		Optional<IImplementationGuideOperationProvider> implementationGuideOperationProvider,
 		Optional<AuthenticationInterceptor> authenticationInterceptor,
-		Optional<AuthorizationInterceptor> authorizationInterceptor
+		Optional<AuthorizationInterceptor> authorizationInterceptor,
+		Optional<JwtPartitionValidationInterceptor> jwtPartitionValidationInterceptor
 	) {
 		RestfulServer fhirServer = new RestfulServer(fhirSystemDao.getContext());
 
@@ -467,6 +469,7 @@ public class StarterJpaConfig {
 		// Register Auth Interceptor
 		authenticationInterceptor.ifPresent(fhirServer::registerInterceptor);
 		authorizationInterceptor.ifPresent(fhirServer::registerInterceptor);
+		jwtPartitionValidationInterceptor.ifPresent(fhirServer::registerInterceptor);
 
 		return fhirServer;
 	}
