@@ -55,8 +55,8 @@ import ca.uhn.fhir.narrative.DefaultThymeleafNarrativeGenerator;
 import ca.uhn.fhir.narrative2.NullNarrativeGenerator;
 import ca.uhn.fhir.rest.api.IResourceSupportedSvc;
 import ca.uhn.fhir.rest.openapi.OpenApiInterceptor;
+import ca.uhn.fhir.jpa.starter.authnz.inbound.authorization.SystemAwareRequestTenantPartitionInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
-import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInterceptor;
 import ca.uhn.fhir.rest.server.*;
 import ca.uhn.fhir.rest.server.interceptor.*;
 import ca.uhn.fhir.rest.server.provider.ResourceProviderFactory;
@@ -449,7 +449,7 @@ public class StarterJpaConfig {
 
 		// Partitioning
 		if (appProperties.getPartitioning() != null) {
-			fhirServer.registerInterceptor(new RequestTenantPartitionInterceptor());
+			fhirServer.registerInterceptor(new SystemAwareRequestTenantPartitionInterceptor());
 			fhirServer.setTenantIdentificationStrategy(new UrlBaseTenantIdentificationStrategy());
 			fhirServer.registerProviders(partitionManagementProvider);
 		}
