@@ -162,8 +162,10 @@ hapi:
     # Enable for multi-tenant deployments (one partition per tenant, addressed via URL: /fhir/{TENANT}/Patient).
     # Pair with security.inbound.authentication.allowed-issuer-patterns and ensure each tenant's
     # Keycloak JWT contains a partition_id claim matching the tenant name.
+    # allow_references_across_partitions defaults to true so tenant writes can reference
+    # definitional resources (Questionnaire, ValueSet, …) that live in DEFAULT only.
     #partitioning:
-    #  allow_references_across_partitions: false
+    #  allow_references_across_partitions: true
     #  partitioning_include_in_search_hashes: false
     cors:
       allow_Credentials: true

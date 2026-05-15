@@ -32,6 +32,7 @@ import ca.uhn.fhir.jpa.interceptor.validation.RepositoryValidatingInterceptor;
 import ca.uhn.fhir.jpa.ips.provider.IpsOperationProvider;
 import ca.uhn.fhir.jpa.packages.IPackageInstallerSvc;
 import ca.uhn.fhir.jpa.packages.PackageInstallationSpec;
+import ca.uhn.fhir.jpa.partition.IRequestPartitionHelperSvc;
 import ca.uhn.fhir.jpa.partition.PartitionManagementProvider;
 import ca.uhn.fhir.jpa.provider.dstu3.JpaConformanceProviderDstu3;
 import ca.uhn.fhir.jpa.provider.*;
@@ -280,7 +281,8 @@ public class StarterJpaConfig {
 		Optional<IImplementationGuideOperationProvider> implementationGuideOperationProvider,
 		Optional<AuthenticationInterceptor> authenticationInterceptor,
 		Optional<AuthorizationInterceptor> authorizationInterceptor,
-		Optional<JwtPartitionValidationInterceptor> jwtPartitionValidationInterceptor
+		Optional<JwtPartitionValidationInterceptor> jwtPartitionValidationInterceptor,
+		IRequestPartitionHelperSvc requestPartitionHelperSvc
 	) {
 		RestfulServer fhirServer = new RestfulServer(fhirSystemDao.getContext());
 
@@ -449,7 +451,7 @@ public class StarterJpaConfig {
 
 		// Partitioning
 		if (appProperties.getPartitioning() != null) {
-			fhirServer.registerInterceptor(new SystemAwareRequestTenantPartitionInterceptor());
+			fhirServer.registerInterceptor(new SystemAwareRequestTenantPartitionInterceptor(requestPartitionHelperSvc));
 			fhirServer.setTenantIdentificationStrategy(new UrlBaseTenantIdentificationStrategy());
 			fhirServer.registerProviders(partitionManagementProvider);
 		}

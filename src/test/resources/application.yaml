@@ -117,7 +117,7 @@ hapi:
     #      - https://hapi.fhir.org/baseR4
     mdm_enabled: false
     #    partitioning:
-    #      allow_references_across_partitions: false
+    #      allow_references_across_partitions: true
     #      partitioning_include_in_search_hashes: false
     #cors:
     #  allow_Credentials: true

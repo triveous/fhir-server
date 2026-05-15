@@ -832,7 +832,13 @@ public Cors getCors() {
   public static class Partitioning {
 
     private Boolean partitioning_include_in_search_hashes = false;
-    private Boolean allow_references_across_partitions = false;
+    // Defaults to true: this fork widens reads of non-partitionable definitional resources
+    // (StructureDefinition, SearchParameter, ValueSet, CodeSystem, Questionnaire, …) to the
+    // DEFAULT partition (see SystemAwareRequestTenantPartitionInterceptor). Writes against
+    // /fhir/<tenant>/… that reference those default-partition resources would otherwise be
+    // rejected by HAPI-1095 under NOT_ALLOWED. ALLOWED_UNQUALIFIED lets the reference
+    // resolve to DEFAULT without forcing clients to qualify the ID.
+    private Boolean allow_references_across_partitions = true;
 
     public Boolean getPartitioning_include_in_search_hashes() {
       return partitioning_include_in_search_hashes;
