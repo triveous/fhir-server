@@ -164,9 +164,24 @@ hapi:
     # Keycloak JWT contains a partition_id claim matching the tenant name.
     # allow_references_across_partitions defaults to true so tenant writes can reference
     # definitional resources (Questionnaire, ValueSet, …) that live in DEFAULT only.
+    #
+    # default_only_resource_types: resource types in this list will be READ from the DEFAULT
+    # partition even when requested via a per-tenant URL. Use for shared "config" resources
+    # (Composition, StructureMap, …) that HAPI's built-in non-partitionable list doesn't
+    # cover. Read-only — writes are not intercepted (writes against /fhir/<tenant>/<Type>
+    # stay tenant-scoped so a misconfigured client cannot silently mutate shared config).
+    # The values shown below are the recommended defaults; the property itself takes effect
+    # only when the partitioning block is uncommented (i.e. multi-tenant mode is enabled).
     #partitioning:
     #  allow_references_across_partitions: true
     #  partitioning_include_in_search_hashes: false
+    #  default_only_resource_types:
+    #    - Composition
+    #    - StructureMap
+    #    - PlanDefinition
+    #    - Library
+    #    - Binary
+    #    - Location
     cors:
       allow_Credentials: true
       # These are allowed_origin patterns, see: https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/cors/CorsConfiguration.html#setAllowedOriginPatterns-java.util.List-
@@ -285,6 +300,14 @@ hapi:
               arguments:
                 - Binary
                 - Composition
+                - Questionnaire
+                - StructureMap
+                - List
+                - PlanDefinition
+                - Library
+                - Measure
+                - Basic
+                - Parameters
             - name: fhir_transaction
             - name: fhir_capabilities
             - name: fhir_batch
