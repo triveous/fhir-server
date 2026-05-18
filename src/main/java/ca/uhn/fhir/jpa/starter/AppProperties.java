@@ -840,6 +840,13 @@ public Cors getCors() {
     // resolve to DEFAULT without forcing clients to qualify the ID.
     private Boolean allow_references_across_partitions = true;
 
+    // Resource types in this list are read from the DEFAULT partition even when requested
+    // via a per-tenant URL. Use for shared "config" resources (Composition, StructureMap, …)
+    // that HAPI's built-in non-partitionable list does not cover. Read-only — writes are not
+    // intercepted. Default value lives in application.yaml so operators can see it.
+    // Spring relaxed binding: yaml `default-only-resource-types` → Java `defaultOnlyResourceTypes`.
+    private List<String> default_only_resource_types = new ArrayList<>();
+
     public Boolean getPartitioning_include_in_search_hashes() {
       return partitioning_include_in_search_hashes;
     }
@@ -853,6 +860,14 @@ public Cors getCors() {
 
     public void setAllow_references_across_partitions(Boolean allow_references_across_partitions) {
       this.allow_references_across_partitions = allow_references_across_partitions;
+    }
+
+    public List<String> getDefault_only_resource_types() {
+      return default_only_resource_types;
+    }
+
+    public void setDefault_only_resource_types(List<String> default_only_resource_types) {
+      this.default_only_resource_types = default_only_resource_types;
     }
   }
 
