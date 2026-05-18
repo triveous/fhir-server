@@ -1,10 +1,8 @@
 package ca.uhn.fhir.jpa.starter.authnz.inbound.authorization;
 
-import ca.uhn.fhir.interceptor.api.Hook;
-import ca.uhn.fhir.interceptor.api.Pointcut;
-import ca.uhn.fhir.interceptor.model.ReadPartitionIdRequestDetails;
 import ca.uhn.fhir.interceptor.model.RequestPartitionId;
 import ca.uhn.fhir.jpa.partition.IRequestPartitionHelperSvc;
+import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.api.server.SystemRequestDetails;
 import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInterceptor;
@@ -39,6 +37,14 @@ import java.util.Set;
 // login. WRITE-side interception is deliberately NOT added: writes against
 // /fhir/<tenant>/<Type> for these types stay tenant-scoped so a misconfigured
 // client cannot silently mutate the shared default-partition config.
+//
+// Implementation note: HAPI's BaseRequestPartitionHelperSvc#determineReadPartitionForRequest
+// fires STORAGE_PARTITION_IDENTIFY_ANY first and only falls back to
+// STORAGE_PARTITION_IDENTIFY_READ when no _ANY hook is registered. Because the
+// parent class already registers an _ANY hook (partitionIdentifyCreate, which
+// delegates to extractPartitionIdFromRequest), the _READ pointcut never fires
+// here. All routing logic therefore lives in the extractPartitionIdFromRequest
+// override below.
 public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantPartitionInterceptor {
 
 	private final IRequestPartitionHelperSvc myPartitionHelperSvc;
@@ -68,19 +74,14 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 		if (theRequestDetails instanceof SystemRequestDetails) {
 			return RequestPartitionId.defaultPartition();
 		}
-		return super.extractPartitionIdFromRequest(theRequestDetails);
-	}
-
-	@Hook(Pointcut.STORAGE_PARTITION_IDENTIFY_READ)
-	public RequestPartitionId identifyReadPartition(
-			RequestDetails theRequestDetails, ReadPartitionIdRequestDetails theReadDetails) {
-		if (theRequestDetails instanceof SystemRequestDetails) {
-			return RequestPartitionId.defaultPartition();
-		}
-		String resourceType = theReadDetails != null ? theReadDetails.getResourceType() : null;
-		if (resourceType != null) {
-			if (!myPartitionHelperSvc.isResourcePartitionable(resourceType)
-					|| myAdditionalDefaultOnlyTypes.contains(resourceType.toLowerCase(Locale.ROOT))) {
+		// Widening only applies to reads — writes against /fhir/<tenant>/<Type>
+		// must stay tenant-scoped so a misconfigured client cannot silently
+		// mutate shared default-partition config.
+		if (theRequestDetails.getRequestType() == RequestTypeEnum.GET) {
+			String resourceType = theRequestDetails.getResourceName();
+			if (resourceType != null
+					&& (!myPartitionHelperSvc.isResourcePartitionable(resourceType)
+							|| myAdditionalDefaultOnlyTypes.contains(resourceType.toLowerCase(Locale.ROOT)))) {
 				return RequestPartitionId.defaultPartition();
 			}
 		}
