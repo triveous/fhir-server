@@ -160,8 +160,11 @@ hapi:
       - http://loinc.org/*
       - https://loinc.org/*
     # Enable for multi-tenant deployments (one partition per tenant, addressed via URL: /fhir/{TENANT}/Patient).
-    # Pair with security.inbound.authentication.allowed-issuer-patterns and ensure each tenant's
-    # Keycloak JWT contains a partition_id claim matching the tenant name.
+    # Pair with security.inbound.authentication.allowed-issuer-patterns. Every tenant's Keycloak JWT
+    # MUST carry a partition_id claim matching the tenant name: JwtPartitionValidationInterceptor
+    # rejects authenticated requests to a non-DEFAULT tenant URL when the claim is missing or
+    # mismatched. Admin access to the shared partition is via no tenant segment, or an explicit
+    # /fhir/DEFAULT/... URL (case-insensitive).
     # allow_references_across_partitions defaults to true so tenant writes can reference
     # definitional resources (Questionnaire, ValueSet, …) that live in DEFAULT only.
     #

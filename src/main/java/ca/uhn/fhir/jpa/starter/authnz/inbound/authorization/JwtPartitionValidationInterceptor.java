@@ -19,8 +19,19 @@ public class JwtPartitionValidationInterceptor {
 		String jwtPartitionId = outcome.getUserSessionDetail().getPartitionId();
 		String urlTenantId = requestDetails.getTenantId();
 
-		// Skip when no partition claim or no URL tenant — covers DEFAULT partition admin calls
-		if (jwtPartitionId == null || urlTenantId == null) return;
+		// No URL tenant segment → admin / DEFAULT-partition call; nothing to enforce here.
+		if (urlTenantId == null) return;
+
+		// Explicit DEFAULT in the URL is treated the same as no tenant segment: shared-partition
+		// admin access. Tokens without a partition_id are permitted to reach DEFAULT this way.
+		if ("DEFAULT".equalsIgnoreCase(urlTenantId)) return;
+
+		// Any other tenant URL requires the JWT to carry partition_id. Failing open here would
+		// let a token with no claim address every tenant — defeating partition isolation.
+		if (jwtPartitionId == null) {
+			throw new ForbiddenOperationException(
+				"Authenticated request to tenant '" + urlTenantId + "' rejected: JWT is missing partition_id claim");
+		}
 
 		if (!jwtPartitionId.equalsIgnoreCase(urlTenantId)) {
 			throw new ForbiddenOperationException(
