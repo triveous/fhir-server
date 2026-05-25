@@ -455,8 +455,12 @@ public class StarterJpaConfig {
 			if (defaultOnlyTypes == null) {
 				defaultOnlyTypes = Collections.emptyList();
 			}
+			Map<String, List<String>> defaultOnlyIds = appProperties.getPartitioning().getDefault_only_resource_ids();
+			if (defaultOnlyIds == null) {
+				defaultOnlyIds = Collections.emptyMap();
+			}
 			fhirServer.registerInterceptor(
-				new SystemAwareRequestTenantPartitionInterceptor(requestPartitionHelperSvc, defaultOnlyTypes));
+				new SystemAwareRequestTenantPartitionInterceptor(requestPartitionHelperSvc, defaultOnlyTypes, defaultOnlyIds));
 			fhirServer.setTenantIdentificationStrategy(new UrlBaseTenantIdentificationStrategy());
 			fhirServer.registerProviders(partitionManagementProvider);
 		}
