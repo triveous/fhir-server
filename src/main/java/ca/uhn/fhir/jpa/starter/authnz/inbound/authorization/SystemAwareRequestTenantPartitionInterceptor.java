@@ -9,10 +9,8 @@ import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInter
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 // Stock RequestTenantPartitionInterceptor throws when a request has no tenant.
@@ -40,14 +38,6 @@ import java.util.Set;
 // /fhir/<tenant>/<Type> for these types stay tenant-scoped so a misconfigured
 // client cannot silently mutate the shared default-partition config.
 //
-// Finer-grained than the type list above is a per-(type, id) widening map
-// (see hapi.fhir.partitioning.default-only-resource-ids). Only GETs at
-// /fhir/<tenant>/<Type>/<id> for the exact (Type, id) pairs configured here
-// resolve to DEFAULT. Use this for platform-shared singletons that share a
-// resource type with per-tenant data (e.g. Basic/feature-flags is shared,
-// but per-tenant Basic/sync-metadata-* must stay tenant-scoped, so we cannot
-// widen all of Basic via default_only_resource_types).
-//
 // Implementation note: HAPI's BaseRequestPartitionHelperSvc#determineReadPartitionForRequest
 // fires STORAGE_PARTITION_IDENTIFY_ANY first and only falls back to
 // STORAGE_PARTITION_IDENTIFY_READ when no _ANY hook is registered. Because the
@@ -59,22 +49,14 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 
 	private final IRequestPartitionHelperSvc myPartitionHelperSvc;
 	private final Set<String> myAdditionalDefaultOnlyTypes;
-	private final Map<String, Set<String>> myDefaultOnlyResourceIds;
 
 	public SystemAwareRequestTenantPartitionInterceptor(IRequestPartitionHelperSvc thePartitionHelperSvc) {
-		this(thePartitionHelperSvc, Collections.emptySet(), Collections.emptyMap());
+		this(thePartitionHelperSvc, Collections.emptySet());
 	}
 
 	public SystemAwareRequestTenantPartitionInterceptor(
 			IRequestPartitionHelperSvc thePartitionHelperSvc,
 			Collection<String> theAdditionalDefaultOnlyTypes) {
-		this(thePartitionHelperSvc, theAdditionalDefaultOnlyTypes, Collections.emptyMap());
-	}
-
-	public SystemAwareRequestTenantPartitionInterceptor(
-			IRequestPartitionHelperSvc thePartitionHelperSvc,
-			Collection<String> theAdditionalDefaultOnlyTypes,
-			Map<String, ? extends Collection<String>> theDefaultOnlyResourceIds) {
 		this.myPartitionHelperSvc = thePartitionHelperSvc;
 		Set<String> lowered = new HashSet<>();
 		if (theAdditionalDefaultOnlyTypes != null) {
@@ -85,27 +67,6 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 			}
 		}
 		this.myAdditionalDefaultOnlyTypes = Collections.unmodifiableSet(lowered);
-
-		Map<String, Set<String>> loweredIds = new HashMap<>();
-		if (theDefaultOnlyResourceIds != null) {
-			for (Map.Entry<String, ? extends Collection<String>> e : theDefaultOnlyResourceIds.entrySet()) {
-				String type = e.getKey();
-				Collection<String> ids = e.getValue();
-				if (type == null || type.isEmpty() || ids == null) {
-					continue;
-				}
-				Set<String> idSet = new HashSet<>();
-				for (String id : ids) {
-					if (id != null && !id.isEmpty()) {
-						idSet.add(id.toLowerCase(Locale.ROOT));
-					}
-				}
-				if (!idSet.isEmpty()) {
-					loweredIds.put(type.toLowerCase(Locale.ROOT), Collections.unmodifiableSet(idSet));
-				}
-			}
-		}
-		this.myDefaultOnlyResourceIds = Collections.unmodifiableMap(loweredIds);
 	}
 
 	@Override
@@ -122,18 +83,6 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 					&& (!myPartitionHelperSvc.isResourcePartitionable(resourceType)
 							|| myAdditionalDefaultOnlyTypes.contains(resourceType.toLowerCase(Locale.ROOT)))) {
 				return RequestPartitionId.defaultPartition();
-			}
-			// Per-(type, id) widening — narrower than the type list. Fast-path past
-			// the lookup when no pairs are configured so behavior is byte-identical
-			// to the pre-patch path.
-			if (resourceType != null && !myDefaultOnlyResourceIds.isEmpty()) {
-				Set<String> ids = myDefaultOnlyResourceIds.get(resourceType.toLowerCase(Locale.ROOT));
-				if (ids != null && theRequestDetails.getId() != null) {
-					String idPart = theRequestDetails.getId().getIdPart();
-					if (idPart != null && ids.contains(idPart.toLowerCase(Locale.ROOT))) {
-						return RequestPartitionId.defaultPartition();
-					}
-				}
 			}
 		}
 		return super.extractPartitionIdFromRequest(theRequestDetails);

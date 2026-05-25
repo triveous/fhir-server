@@ -13,7 +13,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -878,13 +877,6 @@ public Cors getCors() {
     // Spring relaxed binding: yaml `default-only-resource-types` → Java `defaultOnlyResourceTypes`.
     private List<String> default_only_resource_types = new ArrayList<>();
 
-    // Per-(type, id) widening: GETs at /fhir/<tenant>/<Type>/<id> resolve to DEFAULT only when
-    // this exact (Type, id) pair is configured. Narrower than default_only_resource_types so a
-    // shared singleton (e.g. Basic/feature-flags) can be widened without affecting other
-    // resources of the same type (Basic/sync-metadata-* stays tenant-scoped).
-    // Spring relaxed binding: yaml `default-only-resource-ids` → Java `defaultOnlyResourceIds`.
-    private Map<String, List<String>> default_only_resource_ids = new HashMap<>();
-
     public Boolean getPartitioning_include_in_search_hashes() {
       return partitioning_include_in_search_hashes;
     }
@@ -906,14 +898,6 @@ public Cors getCors() {
 
     public void setDefault_only_resource_types(List<String> default_only_resource_types) {
       this.default_only_resource_types = default_only_resource_types;
-    }
-
-    public Map<String, List<String>> getDefault_only_resource_ids() {
-      return default_only_resource_ids;
-    }
-
-    public void setDefault_only_resource_ids(Map<String, List<String>> default_only_resource_ids) {
-      this.default_only_resource_ids = default_only_resource_ids;
     }
   }
 

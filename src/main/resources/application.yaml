@@ -173,10 +173,6 @@ hapi:
     # (Composition, StructureMap, …) that HAPI's built-in non-partitionable list doesn't
     # cover. Read-only — writes are not intercepted (writes against /fhir/<tenant>/<Type>
     # stay tenant-scoped so a misconfigured client cannot silently mutate shared config).
-    # default_only_resource_ids: narrower than default_only_resource_types — only the exact
-    # (Type, id) pairs listed are widened on GET /fhir/<tenant>/<Type>/<id>. Use for
-    # platform-shared singletons that share a resource type with per-tenant data, e.g.
-    # Basic/feature-flags is shared but per-tenant Basic/sync-metadata-* must stay tenant-scoped.
     # The values shown below are the recommended defaults; the property itself takes effect
     # only when the partitioning block is uncommented (i.e. multi-tenant mode is enabled).
     #partitioning:
@@ -189,13 +185,6 @@ hapi:
     #    - Library
     #    - Binary
     #    - Location
-    #  # Per-(type, id) read widening — narrower than default_only_resource_types. A GET at
-    #  # /fhir/<tenant>/<Type>/<id> resolves to DEFAULT only for the exact pairs listed here.
-    #  # Use for platform-shared singletons that share a resource type with per-tenant data
-    #  # (e.g. Basic/feature-flags vs per-tenant Basic/sync-metadata-*).
-    #  default_only_resource_ids:
-    #    Basic:
-    #      - feature-flags
     cors:
       allow_Credentials: true
       # These are allowed_origin patterns, see: https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/cors/CorsConfiguration.html#setAllowedOriginPatterns-java.util.List-
