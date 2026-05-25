@@ -9,6 +9,7 @@ import ca.uhn.fhir.jpa.model.config.PartitionSettings.CrossPartitionReferenceMod
 import ca.uhn.fhir.jpa.model.entity.StorageSettings;
 import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.AppProperties.BinaryStorage;
+import ca.uhn.fhir.jpa.starter.binary.GcsBinaryStorageSvc;
 import ca.uhn.fhir.jpa.starter.binary.MinioBinaryStorageSvc;
 import ca.uhn.fhir.jpa.starter.util.JpaHibernatePropertiesProvider;
 import ca.uhn.fhir.jpa.subscription.match.deliver.email.EmailSenderImpl;
@@ -267,19 +268,34 @@ public class FhirServerConfigCommon {
 	@Lazy
 	@Bean
 	public IBinaryStorageSvc binaryStorageSvc(AppProperties appProperties, ObjectMapper objectMapper) {
-		var minioProperties = appProperties.getBinary_storage_minio();
-		assert appProperties.getBinary_storage() != BinaryStorage.Minio || minioProperties != null;
-
-		var binaryStorageSvc = appProperties.getBinary_storage() == BinaryStorage.Database ?
-			new DatabaseBinaryContentStorageSvcImpl():
-			new MinioBinaryStorageSvc(
-			minioProperties.getBase_url(),
-			minioProperties.getAccess_key(),
-			minioProperties.getSecret_key(),
-			minioProperties.getBucket_name(),
-			minioProperties.getBase_path(),
-			objectMapper
-		);
+		IBinaryStorageSvc binaryStorageSvc;
+		switch (appProperties.getBinary_storage()) {
+			case Minio: {
+				var minioProperties = appProperties.getBinary_storage_minio();
+				assert minioProperties != null;
+				binaryStorageSvc = new MinioBinaryStorageSvc(
+					minioProperties.getBase_url(),
+					minioProperties.getAccess_key(),
+					minioProperties.getSecret_key(),
+					minioProperties.getBucket_name(),
+					minioProperties.getBase_path(),
+					objectMapper);
+				break;
+			}
+			case Gcs: {
+				var gcsProperties = appProperties.getBinary_storage_gcs();
+				assert gcsProperties != null;
+				binaryStorageSvc = new GcsBinaryStorageSvc(
+					gcsProperties.getBucket_name_template(),
+					gcsProperties.getBase_path(),
+					objectMapper);
+				break;
+			}
+			case Database:
+			default:
+				binaryStorageSvc = new DatabaseBinaryContentStorageSvcImpl();
+				break;
+		}
 
 		if (appProperties.getMax_binary_size() != null) {
 			binaryStorageSvc.setMaximumBinarySize(appProperties.getMax_binary_size());

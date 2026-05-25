@@ -54,6 +54,7 @@ public class AppProperties {
   private Boolean binary_storage_enabled = false;
   private BinaryStorage binary_storage = BinaryStorage.Database;
   private MinioBinaryStorage binary_storage_minio = new MinioBinaryStorage();
+  private GcsBinaryStorage binary_storage_gcs = new GcsBinaryStorage();
   private Integer inline_resource_storage_below_size = 0;
   private Boolean bulk_export_enabled = false;
   private Boolean bulk_import_enabled = false;
@@ -469,6 +470,14 @@ public Cors getCors() {
 		return binary_storage_minio;
 	}
 
+	public void setBinary_storage_gcs(GcsBinaryStorage binary_storage_gcs) {
+		this.binary_storage_gcs = binary_storage_gcs;
+	}
+
+	public GcsBinaryStorage getBinary_storage_gcs() {
+		return binary_storage_gcs;
+	}
+
 	public Integer getInline_resource_storage_below_size() {
 		return inline_resource_storage_below_size;
 	}
@@ -652,7 +661,7 @@ public Cors getCors() {
 		this.language_search_parameter_enabled = language_search_parameter_enabled;
 	}
 
-	public enum BinaryStorage { Database, Minio }
+	public enum BinaryStorage { Database, Minio, Gcs }
 
 	public static class MinioBinaryStorage {
 		private String base_url;
@@ -691,6 +700,27 @@ public Cors getCors() {
 
 		public void setBucket_name(String bucket_name) {
 			this.bucket_name = bucket_name;
+		}
+
+		public String getBase_path() {
+			return base_path;
+		}
+
+		public void setBase_path(String base_path) {
+			this.base_path = base_path;
+		}
+	}
+
+	public static class GcsBinaryStorage {
+		private String bucket_name_template;
+		private String base_path;
+
+		public String getBucket_name_template() {
+			return bucket_name_template;
+		}
+
+		public void setBucket_name_template(String bucket_name_template) {
+			this.bucket_name_template = bucket_name_template;
 		}
 
 		public String getBase_path() {
