@@ -1,5 +1,7 @@
 package ca.uhn.fhir.jpa.starter.authnz.inbound.authorization;
 
+import ca.uhn.fhir.interceptor.api.Hook;
+import ca.uhn.fhir.interceptor.api.Pointcut;
 import ca.uhn.fhir.interceptor.model.RequestPartitionId;
 import ca.uhn.fhir.jpa.partition.IRequestPartitionHelperSvc;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
@@ -38,13 +40,19 @@ import java.util.Set;
 // /fhir/<tenant>/<Type> for these types stay tenant-scoped so a misconfigured
 // client cannot silently mutate the shared default-partition config.
 //
-// Implementation note: HAPI's BaseRequestPartitionHelperSvc#determineReadPartitionForRequest
-// fires STORAGE_PARTITION_IDENTIFY_ANY first and only falls back to
-// STORAGE_PARTITION_IDENTIFY_READ when no _ANY hook is registered. Because the
-// parent class already registers an _ANY hook (partitionIdentifyCreate, which
-// delegates to extractPartitionIdFromRequest), the _READ pointcut never fires
-// here. All routing logic therefore lives in the extractPartitionIdFromRequest
-// override below.
+// Implementation note: most code paths in HAPI's BaseRequestPartitionHelperSvc
+// resolve the partition via STORAGE_PARTITION_IDENTIFY_ANY (registered by the
+// parent class) — so the central routing logic lives in the
+// extractPartitionIdFromRequest override below.
+//
+// HOWEVER: operations that fan out internal sub-reads (most notably
+// `<ResourceType>/<id>/$everything`, but also any operation provider that
+// invokes the JPA DAO directly) re-enter partition identification through the
+// STORAGE_PARTITION_IDENTIFY_READ pointcut specifically — _ANY is bypassed.
+// Without an explicit _READ hook the request fails with
+// "HAPI-1319: No interceptor provided a value for pointcut: STORAGE_PARTITION_IDENTIFY_READ".
+// We register one below that delegates to the same extractPartitionIdFromRequest
+// so $everything (and similar fan-out operations) honour the URL tenant.
 public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantPartitionInterceptor {
 
 	private final IRequestPartitionHelperSvc myPartitionHelperSvc;
@@ -86,5 +94,15 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 			}
 		}
 		return super.extractPartitionIdFromRequest(theRequestDetails);
+	}
+
+	// Hook fired by HAPI when the partition for a READ cannot be resolved via
+	// _ANY — e.g. by sub-reads inside Encounter/<id>/$everything. Delegates to
+	// the same routing as the _ANY path so the URL tenant is honoured for
+	// these sub-reads too. See class-level comment for the failure mode this
+	// addresses.
+	@Hook(Pointcut.STORAGE_PARTITION_IDENTIFY_READ)
+	public RequestPartitionId partitionIdentifyRead(RequestDetails theRequestDetails) {
+		return extractPartitionIdFromRequest(theRequestDetails);
 	}
 }
