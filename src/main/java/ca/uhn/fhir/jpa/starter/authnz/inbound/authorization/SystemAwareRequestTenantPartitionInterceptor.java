@@ -40,20 +40,33 @@ import java.util.Set;
 // /fhir/<tenant>/<Type> for these types stay tenant-scoped so a misconfigured
 // client cannot silently mutate the shared default-partition config.
 //
-// Implementation note: most code paths in HAPI's BaseRequestPartitionHelperSvc
-// resolve the partition via STORAGE_PARTITION_IDENTIFY_ANY (registered by the
-// parent class) — so the central routing logic lives in the
-// extractPartitionIdFromRequest override below.
+// Implementation note: all partition routing flows through the
+// STORAGE_PARTITION_IDENTIFY_ANY pointcut (registered by the parent class) →
+// extractPartitionIdFromRequest below. The STORAGE_PARTITION_IDENTIFY_READ
+// pointcut is unreachable as long as _ANY is registered (see
+// BaseRequestPartitionHelperSvc#determineReadPartitionForRequest — _READ is
+// in an `else if` branch only entered when _ANY has no hooks).
 //
-// HOWEVER: operations that fan out internal sub-reads (most notably
-// `<ResourceType>/<id>/$everything`, but also any operation provider that
-// invokes the JPA DAO directly) re-enter partition identification through the
-// STORAGE_PARTITION_IDENTIFY_READ pointcut specifically — _ANY is bypassed.
-// Without an explicit _READ hook the request fails with
+// Fan-out operations (`<ResourceType>/<id>/$everything`, MDM subscription
+// loader, and any HAPI internal that issues a sub-search via the DAO
+// `search(SearchParameterMap)` overload — see HAPI 7.2.0
+// JpaResourceDaoEncounter#encounterInstanceEverything which ignores its
+// HttpServletRequest parameter and calls `search(paramMap)` with no
+// RequestDetails) lose the URL tenant on their internal sub-reads. The
+// _ANY hook then fires for those sub-reads with a RequestDetails that has
+// no tenant set, and super.extractPartitionIdFromRequest throws — surfacing
+// to callers as the misleading
 // "HAPI-1319: No interceptor provided a value for pointcut: STORAGE_PARTITION_IDENTIFY_READ".
-// We register one below that delegates to the same extractPartitionIdFromRequest
-// so $everything (and similar fan-out operations) honour the URL tenant.
+//
+// Fix: capture the outer request's tenant in a per-thread holder at
+// SERVER_INCOMING_REQUEST_PRE_HANDLED, and use it as the fallback inside
+// extractPartitionIdFromRequest when the sub-request RequestDetails carries
+// no tenant of its own. Cleared on SERVER_OUTGOING_RESPONSE /
+// SERVER_PROCESSING_COMPLETED so it can't leak across requests. The outer
+// URL is still the source of truth — sub-reads just inherit it.
 public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantPartitionInterceptor {
+
+	private static final ThreadLocal<String> OUTER_REQUEST_TENANT = new ThreadLocal<>();
 
 	private final IRequestPartitionHelperSvc myPartitionHelperSvc;
 	private final Set<String> myAdditionalDefaultOnlyTypes;
@@ -93,16 +106,41 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 				return RequestPartitionId.defaultPartition();
 			}
 		}
+		// Fallback for sub-reads issued from inside fan-out operations that
+		// don't propagate the outer request's tenant (e.g. $everything's
+		// internal compartment search). See class-level comment.
+		String tenantId = theRequestDetails.getTenantId();
+		if (tenantId == null || tenantId.isEmpty()) {
+			String outer = OUTER_REQUEST_TENANT.get();
+			if (outer != null && !outer.isEmpty()) {
+				return RequestPartitionId.fromPartitionName(outer);
+			}
+		}
 		return super.extractPartitionIdFromRequest(theRequestDetails);
 	}
 
-	// Hook fired by HAPI when the partition for a READ cannot be resolved via
-	// _ANY — e.g. by sub-reads inside Encounter/<id>/$everything. Delegates to
-	// the same routing as the _ANY path so the URL tenant is honoured for
-	// these sub-reads too. See class-level comment for the failure mode this
-	// addresses.
-	@Hook(Pointcut.STORAGE_PARTITION_IDENTIFY_READ)
-	public RequestPartitionId partitionIdentifyRead(RequestDetails theRequestDetails) {
-		return extractPartitionIdFromRequest(theRequestDetails);
+	// Capture the outer (user-facing) request's tenant so internal sub-reads
+	// fired from fan-out operations can inherit it. Only stash if the URL
+	// actually carries a tenant — SystemRequestDetails and other internal
+	// requests already route via the override above and shouldn't pollute the
+	// holder for the rest of the thread.
+	@Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_HANDLED)
+	public void captureOuterRequestTenant(RequestDetails theRequestDetails) {
+		if (theRequestDetails instanceof SystemRequestDetails) {
+			return;
+		}
+		String tenantId = theRequestDetails.getTenantId();
+		if (tenantId != null && !tenantId.isEmpty()) {
+			OUTER_REQUEST_TENANT.set(tenantId);
+		}
+	}
+
+	// Clear at the end of each top-level request — fires for both success and
+	// failure paths per HAPI's contract — so a Tomcat worker thread reused for
+	// a different tenant's request cannot inherit the previous tenant's holder
+	// value.
+	@Hook(Pointcut.SERVER_PROCESSING_COMPLETED)
+	public void clearOuterRequestTenant(RequestDetails theRequestDetails) {
+		OUTER_REQUEST_TENANT.remove();
 	}
 }
