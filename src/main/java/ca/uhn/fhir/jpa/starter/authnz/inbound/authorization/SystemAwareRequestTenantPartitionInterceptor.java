@@ -92,6 +92,19 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 
 	@Override
 	protected RequestPartitionId extractPartitionIdFromRequest(RequestDetails theRequestDetails) {
+		// HAPI's BaseHapiFhirResourceDao#search(SearchParameterMap) overload
+		// calls #search(map, null), so theRequestDetails can be null on the
+		// fan-out sub-read code path (e.g. inside Encounter/<id>/$everything).
+		// Try the outer-request tenant holder first in that case.
+		if (theRequestDetails == null) {
+			String outer = OUTER_REQUEST_TENANT.get();
+			if (outer != null && !outer.isEmpty()) {
+				return RequestPartitionId.fromPartitionName(outer);
+			}
+			// No outer tenant captured (e.g. server-internal startup work);
+			// fall back to DEFAULT rather than throwing.
+			return RequestPartitionId.defaultPartition();
+		}
 		if (theRequestDetails instanceof SystemRequestDetails) {
 			return RequestPartitionId.defaultPartition();
 		}
@@ -106,9 +119,8 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 				return RequestPartitionId.defaultPartition();
 			}
 		}
-		// Fallback for sub-reads issued from inside fan-out operations that
-		// don't propagate the outer request's tenant (e.g. $everything's
-		// internal compartment search). See class-level comment.
+		// Same fallback for non-null sub-request RequestDetails that simply
+		// lack a tenant of their own.
 		String tenantId = theRequestDetails.getTenantId();
 		if (tenantId == null || tenantId.isEmpty()) {
 			String outer = OUTER_REQUEST_TENANT.get();
