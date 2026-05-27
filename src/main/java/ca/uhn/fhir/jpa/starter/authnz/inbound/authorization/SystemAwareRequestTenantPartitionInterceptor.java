@@ -92,6 +92,14 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 
 	@Override
 	protected RequestPartitionId extractPartitionIdFromRequest(RequestDetails theRequestDetails) {
+		// TODO(diagnostic): remove once $everything is verified working
+		String outerHolder = OUTER_REQUEST_TENANT.get();
+		String detailsType = theRequestDetails == null ? "null" : theRequestDetails.getClass().getSimpleName();
+		String detailsTenant = theRequestDetails == null ? "<null>" : String.valueOf(theRequestDetails.getTenantId());
+		System.err.println("[partition-debug] extractPartitionIdFromRequest: requestDetails=" + detailsType
+				+ " tenantId=" + detailsTenant + " threadLocalOuter=" + outerHolder
+				+ " thread=" + Thread.currentThread().getName());
+
 		// HAPI's BaseHapiFhirResourceDao#search(SearchParameterMap) overload
 		// calls #search(map, null), so theRequestDetails can be null on the
 		// fan-out sub-read code path (e.g. inside Encounter/<id>/$everything).
@@ -138,10 +146,13 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 	// holder for the rest of the thread.
 	@Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_HANDLED)
 	public void captureOuterRequestTenant(RequestDetails theRequestDetails) {
+		String tenantId = theRequestDetails == null ? null : theRequestDetails.getTenantId();
+		System.err.println("[partition-debug] PRE_HANDLED hook fired: tenantId=" + tenantId
+				+ " isSystem=" + (theRequestDetails instanceof SystemRequestDetails)
+				+ " thread=" + Thread.currentThread().getName());
 		if (theRequestDetails instanceof SystemRequestDetails) {
 			return;
 		}
-		String tenantId = theRequestDetails.getTenantId();
 		if (tenantId != null && !tenantId.isEmpty()) {
 			OUTER_REQUEST_TENANT.set(tenantId);
 		}
@@ -153,6 +164,7 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 	// value.
 	@Hook(Pointcut.SERVER_PROCESSING_COMPLETED)
 	public void clearOuterRequestTenant(RequestDetails theRequestDetails) {
+		System.err.println("[partition-debug] COMPLETED hook fired thread=" + Thread.currentThread().getName());
 		OUTER_REQUEST_TENANT.remove();
 	}
 }
