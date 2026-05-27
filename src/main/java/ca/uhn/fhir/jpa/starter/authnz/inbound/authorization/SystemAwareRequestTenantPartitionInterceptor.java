@@ -114,6 +114,17 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 			return RequestPartitionId.defaultPartition();
 		}
 		if (theRequestDetails instanceof SystemRequestDetails) {
+			// If we're inside a fan-out sub-read of a tenant-scoped outer
+			// request (e.g. Encounter/<id>/$everything served by HAPI's
+			// JpaResourceDaoEncounter which constructs a fresh
+			// SystemRequestDetails with no explicit partition), inherit the
+			// outer tenant rather than dropping to DEFAULT — otherwise the
+			// sub-read would query the wrong partition.
+			String outer = OUTER_REQUEST_TENANT.get();
+			if (outer != null && !outer.isEmpty()) {
+				System.err.println("[partition-debug] SystemRequestDetails → using outer tenant " + outer);
+				return RequestPartitionId.fromPartitionName(outer);
+			}
 			return RequestPartitionId.defaultPartition();
 		}
 		// Widening only applies to reads — writes against /fhir/<tenant>/<Type>
