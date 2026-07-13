@@ -1,15 +1,18 @@
 package ca.uhn.fhir.jpa.starter.authnz.inbound.authorization;
 
 import ca.uhn.fhir.interceptor.model.RequestPartitionId;
+import ca.uhn.fhir.jpa.model.util.JpaConstants;
 import ca.uhn.fhir.jpa.partition.IRequestPartitionHelperSvc;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.api.server.SystemRequestDetails;
 import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInterceptor;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -49,24 +52,40 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 
 	private final IRequestPartitionHelperSvc myPartitionHelperSvc;
 	private final Set<String> myAdditionalDefaultOnlyTypes;
+	// Partitionable types whose GET reads should span the tenant partition AND
+	// DEFAULT, so a tenant sees both its own instances and the shared
+	// default-partition ones in a single result set. See mergeTenantWithDefault.
+	private final Set<String> myMergeWithDefaultTypes;
 
 	public SystemAwareRequestTenantPartitionInterceptor(IRequestPartitionHelperSvc thePartitionHelperSvc) {
-		this(thePartitionHelperSvc, Collections.emptySet());
+		this(thePartitionHelperSvc, Collections.emptySet(), Collections.emptySet());
 	}
 
 	public SystemAwareRequestTenantPartitionInterceptor(
 			IRequestPartitionHelperSvc thePartitionHelperSvc,
 			Collection<String> theAdditionalDefaultOnlyTypes) {
+		this(thePartitionHelperSvc, theAdditionalDefaultOnlyTypes, Collections.emptySet());
+	}
+
+	public SystemAwareRequestTenantPartitionInterceptor(
+			IRequestPartitionHelperSvc thePartitionHelperSvc,
+			Collection<String> theAdditionalDefaultOnlyTypes,
+			Collection<String> theMergeWithDefaultTypes) {
 		this.myPartitionHelperSvc = thePartitionHelperSvc;
+		this.myAdditionalDefaultOnlyTypes = toLowerCaseSet(theAdditionalDefaultOnlyTypes);
+		this.myMergeWithDefaultTypes = toLowerCaseSet(theMergeWithDefaultTypes);
+	}
+
+	private static Set<String> toLowerCaseSet(Collection<String> theTypes) {
 		Set<String> lowered = new HashSet<>();
-		if (theAdditionalDefaultOnlyTypes != null) {
-			for (String t : theAdditionalDefaultOnlyTypes) {
+		if (theTypes != null) {
+			for (String t : theTypes) {
 				if (t != null && !t.isEmpty()) {
 					lowered.add(t.toLowerCase(Locale.ROOT));
 				}
 			}
 		}
-		this.myAdditionalDefaultOnlyTypes = Collections.unmodifiableSet(lowered);
+		return Collections.unmodifiableSet(lowered);
 	}
 
 	@Override
@@ -79,12 +98,53 @@ public class SystemAwareRequestTenantPartitionInterceptor extends RequestTenantP
 		// mutate shared default-partition config.
 		if (theRequestDetails.getRequestType() == RequestTypeEnum.GET) {
 			String resourceType = theRequestDetails.getResourceName();
-			if (resourceType != null
-					&& (!myPartitionHelperSvc.isResourcePartitionable(resourceType)
-							|| myAdditionalDefaultOnlyTypes.contains(resourceType.toLowerCase(Locale.ROOT)))) {
-				return RequestPartitionId.defaultPartition();
+			if (resourceType != null) {
+				String lower = resourceType.toLowerCase(Locale.ROOT);
+				// Non-partitionable definitional types (HAPI-1318) can ONLY live in
+				// DEFAULT — they must never be merged with a tenant partition.
+				if (!myPartitionHelperSvc.isResourcePartitionable(resourceType)) {
+					return RequestPartitionId.defaultPartition();
+				}
+				// Partitionable shared types that should be visible from BOTH the
+				// tenant partition and DEFAULT in one read. Checked before the
+				// default-only set so an entry in both lists merges rather than
+				// hides the tenant's own instances.
+				if (myMergeWithDefaultTypes.contains(lower)) {
+					return mergeTenantWithDefault(theRequestDetails);
+				}
+				// Partitionable types served purely from DEFAULT.
+				if (myAdditionalDefaultOnlyTypes.contains(lower)) {
+					return RequestPartitionId.defaultPartition();
+				}
 			}
 		}
 		return super.extractPartitionIdFromRequest(theRequestDetails);
+	}
+
+	// Returns a RequestPartitionId spanning the URL tenant partition and DEFAULT,
+	// so a GET reads the union of the tenant's own instances and the shared
+	// default-partition ones. Read-by-id across both partitions assumes the
+	// logical id is unique across them (true for our data: tenant ids are
+	// server-assigned numerics, shared seeds use stable string ids).
+	private RequestPartitionId mergeTenantWithDefault(RequestDetails theRequestDetails) {
+		RequestPartitionId tenant;
+		try {
+			tenant = super.extractPartitionIdFromRequest(theRequestDetails);
+		} catch (RuntimeException e) {
+			// No resolvable tenant (e.g. a tenant-less URL) — fall back to the
+			// prior default-only behaviour rather than propagating the error.
+			return RequestPartitionId.defaultPartition();
+		}
+		if (tenant == null || tenant.isAllPartitions() || tenant.isDefaultPartition()) {
+			return tenant;
+		}
+		List<String> names = new ArrayList<>();
+		if (tenant.getPartitionNames() != null) {
+			names.addAll(tenant.getPartitionNames());
+		}
+		if (!names.contains(JpaConstants.DEFAULT_PARTITION_NAME)) {
+			names.add(JpaConstants.DEFAULT_PARTITION_NAME);
+		}
+		return RequestPartitionId.fromPartitionNames(names);
 	}
 }

@@ -877,6 +877,17 @@ public Cors getCors() {
     // Spring relaxed binding: yaml `default-only-resource-types` → Java `defaultOnlyResourceTypes`.
     private List<String> default_only_resource_types = new ArrayList<>();
 
+    // Partitionable resource types whose GET reads span BOTH the URL tenant
+    // partition AND the DEFAULT partition, returning the union. Use for shared
+    // types where tenants also hold their own instances (e.g. Location: the
+    // per-tenant location tree lives in the tenant partition, while shared
+    // physical-location-* seeds live in DEFAULT). Unlike default_only_resource_types
+    // this does NOT hide the tenant's own rows. Read-only — writes stay
+    // tenant-scoped. Non-partitionable types are ignored here (they are forced
+    // to DEFAULT regardless). Spring relaxed binding:
+    // yaml `merge-default-resource-types` → Java `mergeDefaultResourceTypes`.
+    private List<String> merge_default_resource_types = new ArrayList<>();
+
     public Boolean getPartitioning_include_in_search_hashes() {
       return partitioning_include_in_search_hashes;
     }
@@ -898,6 +909,14 @@ public Cors getCors() {
 
     public void setDefault_only_resource_types(List<String> default_only_resource_types) {
       this.default_only_resource_types = default_only_resource_types;
+    }
+
+    public List<String> getMerge_default_resource_types() {
+      return merge_default_resource_types;
+    }
+
+    public void setMerge_default_resource_types(List<String> merge_default_resource_types) {
+      this.merge_default_resource_types = merge_default_resource_types;
     }
   }
 
